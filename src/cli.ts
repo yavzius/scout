@@ -41,10 +41,13 @@ DIRECT EXTRACT
   scout extract <url> --raw     Get raw markdown
 
 SETUP
-  scout setup                   Show API key status
+  scout setup                   Show API key status + configure Claude Code
   scout setup exa <key>         Save Exa API key
   scout setup firecrawl <key>   Save Firecrawl API key
   scout setup gemini <key>      Save Gemini API key
+
+  When all keys are configured, setup automatically adds scout
+  to ~/.claude/CLAUDE.md so Claude Code can use it as a tool.
 
 CACHE
   scout cache                   Show cache stats

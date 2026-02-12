@@ -95,6 +95,8 @@ scout setup gemini <your-key>
 
 Keys are saved to `~/.config/{service}/api_key` with `0600` permissions. Environment variables (`EXA_API_KEY`, `FIRECRAWL_API_KEY`, `GEMINI_API_KEY`) take precedence.
 
+Once all keys are configured, `scout setup` automatically adds a scout reference to `~/.claude/CLAUDE.md` — so Claude Code knows how to use it as a research tool.
+
 Check status anytime:
 
 ```bash
