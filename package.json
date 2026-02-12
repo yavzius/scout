@@ -1,0 +1,23 @@
+{
+  "name": "scout-cli",
+  "version": "0.1.0",
+  "main": "src/cli.ts",
+  "bin": {
+    "scout": "src/cli.ts"
+  },
+  "description": "Fast, structured web research from the terminal",
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "license": "MIT",
+  "scripts": {
+    "dev": "bun run src/cli.ts",
+    "build": "bun build --compile src/cli.ts --outfile scout",
+    "typecheck": "bun x tsc --noEmit"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "^1.3.9",
+    "typescript": "^5.9.3"
+  }
+}
