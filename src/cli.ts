@@ -10,53 +10,45 @@ import * as setup from "./commands/setup.js";
 // ── Help ────────────────────────────────────────────────────────────────────
 
 const HELP = `
-scout v${VERSION} — Fast, structured web research from the terminal
+scout v${VERSION} — web research CLI
 
 SEARCH
-  scout "query" [options]
+  scout "query"                    Search the web (default: 5 results)
+  scout search "query"             Same as above
 
-  --type TYPE        auto, neural, keyword (default: auto)
-  --category CAT     news, research paper, tweet, company, people, pdf
-  --after DATE       Results after DATE (YYYY-MM-DD)
-  --before DATE      Results before DATE
+  --num N            Number of results (default: 5)
   --days N           Results from last N days
-  --domains LIST     Comma-separated domains to include
-  --exclude LIST     Comma-separated domains to exclude
-  --livecrawl MODE   never, fallback, preferred, always
-  --num N            Number of results (default: 15)
+  --category CAT     news, research paper, tweet, company, people, pdf
+  --domains LIST     Comma-separated domains to search
+  --after DATE       Results after YYYY-MM-DD
+  --before DATE      Results before YYYY-MM-DD
 
 EXTRACT
-  scout '?abc:1,2,3'            Extract and analyze results 1, 2, 3
-  scout '?abc:all'              Extract top 5 results
-  scout '?:1,2'                 Extract from most recent session
+  scout '?abc:1,2,3'               Extract results by index
+  scout '?abc:all'                 Extract all results from session
+  -c, --context TEXT               Research question for targeted analysis
+  --raw                            Raw markdown (skip Gemini analysis)
+  --limit N                        Max chars for raw mode (default: 8000)
+  --no-cache                       Bypass extraction cache
 
-  -c, --context TEXT            Research question for targeted analysis
-  -cf, --context-file PATH      Read context from file
-  --raw                         Clean markdown only (skip analysis)
-  --limit N                     Chars for raw mode (default: 8000)
-  --no-cache                    Bypass cache, force fresh extraction
-
-DIRECT EXTRACT
-  scout extract <url>           Analyze any URL
-  scout extract <url> --raw     Get raw markdown
+DIRECT
+  scout extract <url>              Extract and analyze any URL
+  scout extract <url> --raw        Get raw markdown from any URL
 
 SETUP
-  scout setup                   Show API key status + configure Claude Code
-  scout setup exa <key>         Save Exa API key
-  scout setup firecrawl <key>   Save Firecrawl API key
-  scout setup gemini <key>      Save Gemini API key
-
-  When all keys are configured, setup automatically adds scout
-  to ~/.claude/CLAUDE.md so Claude Code can use it as a tool.
+  scout setup                      Show API key status
+  scout setup exa <key>            Save Exa API key
+  scout setup firecrawl <key>      Save Firecrawl key
+  scout setup gemini <key>         Save Gemini key
 
 CACHE
-  scout cache                   Show cache stats
-  scout cache clear             Clear extraction cache
+  scout cache                      Show cache stats
+  scout cache clear                Clear cache
 
-OPTIONS
-  --json                        Output as JSON (for piping)
-  --version                     Show version
-  --help                        Show this help
+EXAMPLES
+  scout "best js sandbox libraries 2025" --num 5
+  scout '?a3f:1,3' -c "What isolation method does each use?"
+  scout extract https://example.com/article -c "Key findings?"
 `;
 
 // ── Arg Parser ──────────────────────────────────────────────────────────────
@@ -106,6 +98,12 @@ function parseArgs(argv: string[]): ParsedArgs {
     }
   }
 
+  // Alias common hallucinated flags
+  if (flags["max-results"] && !flags.num) {
+    flags.num = flags["max-results"];
+    delete flags["max-results"];
+  }
+
   return { flags, positional };
 }
 
@@ -113,6 +111,18 @@ function parseArgs(argv: string[]): ParsedArgs {
 
 async function main(): Promise<void> {
   const args = parseArgs(Bun.argv.slice(2));
+
+  const KNOWN_FLAGS = new Set([
+    "help", "version", "json", "raw", "no-cache", "context", "context-file",
+    "num", "type", "category", "after", "before", "days", "domains",
+    "exclude", "livecrawl", "limit", "max-results", "extract", "provider",
+  ]);
+
+  for (const key of Object.keys(args.flags)) {
+    if (!KNOWN_FLAGS.has(key)) {
+      console.error(`Warning: Unknown flag --${key} (ignored)`);
+    }
+  }
 
   if (args.flags.help || (args.positional.length === 0 && !args.flags.extract && !args.flags.version)) {
     console.log(HELP);
@@ -152,6 +162,17 @@ async function main(): Promise<void> {
   // Cache: scout cache [clear]
   if (command === "cache") {
     cache.run(args.positional[1], args.flags.json === true);
+    return;
+  }
+
+  // Search: scout search "query" — strip "search" subcommand
+  if (command === "search") {
+    const query = args.positional.slice(1).join(" ");
+    if (!query) {
+      console.log(HELP);
+      return;
+    }
+    await search.run(query, args);
     return;
   }
 

@@ -1,7 +1,5 @@
 import type { SearchSession, ExtractedArticle } from "../types.js";
 
-const SEPARATOR = "═".repeat(70);
-
 // ── Status (stderr) ─────────────────────────────────────────────────────────
 
 export function status(message: string): void {
@@ -16,26 +14,26 @@ export function printSearchResults(session: SearchSession, json: boolean): void 
     return;
   }
 
-  console.log(`\n[scout:${session.id}] ${session.results.length} results:\n`);
+  console.log(`[${session.id}] ${session.results.length} results`);
 
-  const display = session.results.slice(0, 10);
-
-  for (let i = 0; i < display.length; i++) {
-    const r = display[i]!;
-    const date = r.publishedDate ? ` [${r.publishedDate.slice(0, 10)}]` : "";
-    const author = r.author ? ` — ${r.author.slice(0, 30)}` : "";
+  for (let i = 0; i < session.results.length; i++) {
+    const r = session.results[i]!;
     const domain = new URL(r.url).hostname.replace("www.", "");
+    const date = r.publishedDate ? ` | ${r.publishedDate.slice(0, 10)}` : "";
+    const author = r.author && !domain.includes(r.author.toLowerCase().replace(/\s/g, ""))
+      ? ` — ${r.author.slice(0, 30)}`
+      : "";
 
-    console.log(`[${i + 1}] ${r.title.slice(0, 70)}${date}`);
-    console.log(`    ${domain}${author}`);
+    console.log(`[${i + 1}] ${r.title.slice(0, 80)}${author} | ${domain}${date}`);
     if (r.summary) {
       const truncated = r.summary.length > 90 ? `${r.summary.slice(0, 90)}...` : r.summary;
-      console.log(`    "${truncated}"`);
+      console.log(`    ${truncated}`);
     }
-    console.log();
   }
 
-  console.log(`Extract: scout '?${session.id}:1,2,3' or scout '?${session.id}:all'`);
+  const topN = Math.min(3, session.results.length);
+  const indices = Array.from({ length: topN }, (_, i) => i + 1).join(",");
+  console.log(`scout '?${session.id}:${indices}'`);
 }
 
 // ── Extracted Articles ──────────────────────────────────────────────────────
@@ -47,13 +45,9 @@ export function printArticles(articles: ExtractedArticle[], json: boolean): void
   }
 
   for (const article of articles) {
-    console.log(`\n${SEPARATOR}`);
-    console.log(`[${article.index}] ${article.title}`);
+    console.log(`\n[${article.index}] ${article.title} | ${new URL(article.url).hostname.replace("www.", "")}`);
     console.log(article.url);
-    if (article.author) console.log(`Author: ${article.author}`);
-    console.log(`${SEPARATOR}\n`);
     console.log(article.content);
-    console.log();
   }
 }
 

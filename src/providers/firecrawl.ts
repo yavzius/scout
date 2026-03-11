@@ -48,10 +48,18 @@ export async function scrape(url: string, options: ScrapeOptions = {}): Promise<
     }),
   });
 
+  if (!response.ok) {
+    const statusText = response.status === 402 ? "quota exceeded"
+      : response.status === 408 ? "timeout"
+      : response.status === 429 ? "rate limited"
+      : `API error ${response.status}`;
+    return { success: false, error: statusText };
+  }
+
   const data = (await response.json()) as FirecrawlScrapeResponse;
 
   if (!data.success || !data.data?.markdown) {
-    return { success: false, error: `Firecrawl scrape failed (${response.status})` };
+    return { success: false, error: "no content extracted" };
   }
 
   const content = data.data.markdown;

@@ -11,7 +11,7 @@ export async function run(query: string, args: ParsedArgs): Promise<void> {
   const options: SearchOptions = {
     type: (args.flags.type as SearchOptions["type"]) ?? config.defaults?.searchType,
     category: args.flags.category as string | undefined,
-    numResults: args.flags.num ? parseInt(args.flags.num as string, 10) : (config.defaults?.numResults ?? 15),
+    numResults: args.flags.num ? parseInt(args.flags.num as string, 10) : (config.defaults?.numResults ?? 5),
     livecrawl: args.flags.livecrawl as SearchOptions["livecrawl"],
     includeDomains: config.defaults?.includeDomains,
     excludeDomains: config.defaults?.excludeDomains,

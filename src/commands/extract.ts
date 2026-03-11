@@ -5,6 +5,7 @@ import { loadSession } from "../lib/session.js";
 import { status, printArticles } from "../lib/output.js";
 import * as firecrawl from "../providers/firecrawl.js";
 import * as gemini from "../providers/gemini.js";
+import { isErrorPage } from "../lib/validate.js";
 
 // ── Context Loading ─────────────────────────────────────────────────────────
 
@@ -40,11 +41,19 @@ async function processArticle(
   const extracted = await firecrawl.scrape(url, { noCache });
 
   if (!extracted.success || !extracted.content) {
-    status(`   [${index}] ✗ Failed to extract`);
+    const reason = extracted.error ?? "unknown";
+    status(`   [${index}] ✗ Failed (${reason})`);
     return null;
   }
 
   if (extracted.cached) status(`   [${index}] ⚡ Cached`);
+
+  // Check for error pages before sending to Gemini
+  const errorPageReason = isErrorPage(extracted.content);
+  if (errorPageReason) {
+    status(`   [${index}] ✗ Skipped (${errorPageReason})`);
+    return null;
+  }
 
   let content: string;
 
@@ -54,8 +63,17 @@ async function processArticle(
       content = `${content.slice(0, limit)}\n\n[...truncated at ${limit} chars, use --limit N for more]`;
     }
   } else {
-    content = await gemini.analyze(extracted.content, title, url, context);
-    status(`   [${index}] ✓ Analyzed${extracted.cached ? " (from cache)" : ""}`);
+    try {
+      content = await gemini.analyze(extracted.content, title, url, context);
+      status(`   [${index}] ✓ Analyzed${extracted.cached ? " (from cache)" : ""}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message === "EMPTY_PAGE") {
+        status(`   [${index}] ✗ Skipped (empty/error page)`);
+        return null;
+      }
+      throw err;
+    }
   }
 
   return { index, title, url, author, content };
@@ -92,7 +110,7 @@ export async function fromSession(command: string, args: ParsedArgs): Promise<vo
   }
 
   const indices = action === "all"
-    ? [1, 2, 3, 4, 5]
+    ? session.results.map((_, i) => i + 1)
     : action.split(/[,\s]+/).map(Number).filter((n) => !isNaN(n));
 
   if (indices.length === 0) {

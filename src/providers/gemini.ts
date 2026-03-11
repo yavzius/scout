@@ -2,38 +2,39 @@ import type { GeminiResponse } from "../types.js";
 import { keys } from "../lib/config.js";
 
 const BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-const MODEL = "gemini-3-flash-preview";
+const MODEL = "gemini-3.1-flash-lite-preview";
 
 function buildPrompt(content: string, title: string, url: string, context?: string): string {
-  const contextBlock = context
-    ? `\nRESEARCH CONTEXT: The researcher is exploring: "${context}"\nFocus your analysis on what's most relevant to this question.\n`
-    : "";
+  const contextBlock = context ? `\nCONTEXT: ${context}\n` : "";
 
-  return `Analyze this article and extract the most valuable information for a researcher.
+  return `Analyze this article for a researcher.
 ${contextBlock}
-ARTICLE TITLE: ${title}
+TITLE: ${title}
 URL: ${url}
 
-ARTICLE CONTENT:
+CONTENT:
 ${content}
 
 ---
 
-Provide a structured analysis with:
+IMPORTANT: If this is an error page (404, 403, 500), login wall,
+cookie consent page, or empty/placeholder content, respond with
+only: EMPTY_PAGE
 
-1. **CORE ARGUMENT** (2-3 sentences): What is the main thesis or claim?
+Otherwise respond with exactly this structure:
 
-2. **KEY INSIGHTS** (bullet points): What are the most novel or important ideas? Focus on non-obvious insights.${context ? " Prioritize insights relevant to the research context." : ""}
+THESIS: [2-3 sentences — main claim or argument]
 
-3. **EVIDENCE & DATA** (bullet points): What concrete evidence, studies, or data supports the claims? Include specific numbers, citations, or examples.
+INSIGHTS:
+- [non-obvious findings as tight bullet points]${context ? "\n- [prioritize insights relevant to the research context]" : ""}
 
-4. **NOTABLE QUOTES** (2-3 max): Direct quotes that capture key ideas. Format: "quote" — context
+EVIDENCE: [concrete data, studies, numbers, citations — one paragraph]
 
-5. **CREDIBILITY SIGNALS**: Author expertise, publication quality, cited sources, potential biases.
+KEY QUOTE: [1-2 direct quotes that capture key ideas]
 
-6. **CONNECTIONS**: How might this relate to other fields or ideas?${context ? " How does it connect to the research question?" : ""} What questions does it raise?
+RELEVANCE: [how this connects to the research context, or what questions it raises]
 
-Be concise but substantive. Prioritize novel insights over obvious points. Include specific details, not vague summaries.`;
+Be dense. No preamble. No filler. Every sentence must carry signal.`;
 }
 
 export async function analyze(
@@ -66,6 +67,10 @@ export async function analyze(
 
   if (!text) {
     throw new Error("Gemini returned an empty response");
+  }
+
+  if (text.trim() === "EMPTY_PAGE") {
+    throw new Error("EMPTY_PAGE");
   }
 
   return text;

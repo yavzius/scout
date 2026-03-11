@@ -4,7 +4,7 @@ import { join } from "path";
 import type { SearchSession } from "../types.js";
 
 const SESSION_DIR = join(homedir(), ".cache", "scout", "sessions");
-const EXPIRY_MS = 2 * 60 * 60 * 1000; // 2 hours
+const EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
 const MAX_SESSIONS = 10;
 
 // ── ID ──────────────────────────────────────────────────────────────────────

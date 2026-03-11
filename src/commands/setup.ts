@@ -27,32 +27,9 @@ const CLAUDE_MD_DIR = join(homedir(), ".claude");
 const CLAUDE_MD_PATH = join(CLAUDE_MD_DIR, "CLAUDE.md");
 
 const SCOUT_SECTION = `
-## Scout CLI
+## Scout
 
-**IMPORTANT: When you need to research or look up information on the web, always prefer using \`scout\` via Bash over the built-in WebSearch/WebFetch tools.** Scout provides higher-quality results through Exa neural search, cleaner extraction via Firecrawl, and structured analysis via Gemini.
-
-Three-stage pipeline: search → extract → analyze.
-
-\`\`\`bash
-# Search
-scout "query" [options]           # Search the web
-
-# Extract with context (targeted analysis)
-scout '?abc:1,2,3' -c "your research question"
-scout '?abc:1,2,3' --context-file ./notes.md
-
-# Extract without context
-scout '?abc:1,2,3'                # Gemini analysis
-scout '?abc:1,2,3' --raw          # Clean markdown only
-
-# Direct URL extraction
-scout extract <url>               # Analyze any URL
-scout extract <url> --raw         # Raw markdown
-\`\`\`
-
-**Search options:** \`--category\` (news, research paper, tweet, company, pdf), \`--days N\`, \`--after/--before DATE\`, \`--domains LIST\`, \`--exclude LIST\`, \`--num N\`
-
-**Extract options:** \`-c\` context, \`--raw\` skip analysis, \`--limit N\` chars, \`--no-cache\`, \`--json\` for piping
+Use \`scout\` for web research. Run \`scout --help\` for usage.
 `;
 
 function ensureClaudeMd(): { added: boolean } {
@@ -60,7 +37,7 @@ function ensureClaudeMd(): { added: boolean } {
 
   if (existsSync(CLAUDE_MD_PATH)) {
     const content = readFileSync(CLAUDE_MD_PATH, "utf-8");
-    if (content.includes("## Scout CLI")) {
+    if (content.includes("## Scout")) {
       return { added: false };
     }
     writeFileSync(CLAUDE_MD_PATH, content.trimEnd() + "\n" + SCOUT_SECTION);
