@@ -1,159 +1,151 @@
 ---
-name: research
-description: Multi-source web research using scout CLI. Use when you need to research a topic, find evidence, gather community opinions, discover academic papers, or build a comprehensive understanding of any subject. Activates for research tasks, competitive analysis, fact-finding, literature review, or any query requiring more than a single search.
+name: scout-research
+description: Multi-source web research using scout CLI. Use when researching topics, finding evidence, gathering community opinions, discovering academic papers, competitive analysis, or any task requiring web search. Covers Exa, Google, Scholar, News, HackerNews, Reddit, and GitHub.
+allowed-tools: Bash(scout:*) Bash(gh:*)
 ---
 
-# Research with Scout
+# Web Research with scout
 
-Scout is a multi-source search CLI. Each source has different strengths. Your job is to pick the right source for what you need, combine them for thorough research, and verify claims across sources.
+## Quick start
 
-Run `scout --help` for command reference. Run `scout sources --help` for detailed source guidance.
+```bash
+# search the web (Exa — best for understanding)
+scout "how does spaced repetition work"
+# expand a result to full text (free, instant)
+scout '?abc:1,2' --raw
 
-## Sources and When to Use Each
+# google search (best for exact match, site: filters)
+scout "\"Lalilo\" site:reddit.com" --source google
+# academic papers with citation counts
+scout "productive failure mathematics" --source scholar --after 2024
+# current news
+scout "edtech evaluation 2026" --source news
 
-### Exa (default, no flag)
-Best for understanding a topic. Returns AI summaries + stores full page text for instant expand.
-- "What is X?", "How does X work?", conceptual queries
-- Full content stored — expand with `scout '?abc:1,2'` costs nothing
-- Weak at: finding specific terms buried in comments, very fresh news
-- Cost: ~$0.01/query
+# community opinions
+scout "Alpha School" --source hn
+scout "Alpha School" --source reddit
+# drill into comments
+scout "hn:47050215" --source hn
+scout "reddit:/r/AustinParents/comments/1o0hv4s/alpha_school_updated_thoughts/" --source reddit
 
-### Google (--source google)
-Best for exact-match recall, site: filtering, finding niche terms anywhere.
-- `"exact phrase" site:domain.com`, finding where something is mentioned
-- Returns answer box, "people also ask", and related searches — use these to discover follow-up queries
-- Weak at: conceptual understanding (returns snippets, not summaries)
-- Cost: ~$0.001/query
-
-### Scholar (--source scholar)
-Best for academic papers with citation counts. Use specific terms, not broad queries.
-- Auto-quotes first 2 words for better results
-- Use `--after YEAR` to filter to recent papers
-- Citation count is a credibility signal: >100 cited = foundational, >10 = established, 0 = new/unproven
-- Weak at: broad queries (returns survey papers). Be specific.
-- Cost: ~$0.001/query
-
-### News (--source news)
-Best for current events, industry news, timestamped results with source attribution.
-- "What happened recently with X?"
-- Returns source name + date
-- Cost: ~$0.001/query
-
-### HackerNews (--source hn)
-Best for tech/startup community opinions. Free. Use short simple queries.
-- Story search: `scout "topic" --source hn`
-- Global comment search: `scout "topic" --source hn --comments` (finds hidden discussions in unrelated threads)
-- Top comments on a story (HN-ranked, best first): `scout "hn:ID" --source hn`
-- Filtered comments within a story: `scout "hn:ID keyword" --source hn`
-- Weak at: non-tech topics
-- Credibility signals: karma badges (starred = established), reply counts
-
-### Reddit (--source reddit)
-Best for real user opinions, parent/teacher/consumer sentiment. Uses Google for discovery, Reddit API for comments.
-- Post search: `scout "topic" --source reddit`
-- Subreddit filter: `scout "topic" --source reddit --subreddit Teachers`
-- Load comment thread: `scout "reddit:/r/sub/comments/id/slug/" --source reddit`
-- Credibility signals: karma badges, post scores, comment counts
-
-### GitHub (gh CLI)
-Best for code, repos, issues, README content. Use `gh api` directly.
-- Repo search: `gh api search/repositories -f q="topic" -f sort=stars -f per_page=5`
-- Code search: `gh api search/code -f q="pattern language:typescript" -f per_page=5`
-- Issue search: `gh api search/issues -f q="topic type:issue" -f sort=comments -f per_page=5`
-- README search: `gh api search/repositories -f q="topic in:readme" -f per_page=5`
-
-## Research Methodology
-
-### Phase 1: Plan (before any search)
-
-Ask yourself:
-- What exactly am I trying to learn?
-- What would change my understanding?
-- What would a HIGH-quality answer look like?
-
-Decompose into 3-7 sub-questions. Consider angles: technical, contrarian, financial, historical, user experience.
-
-### Phase 2: Multi-Source Search
-
-Never search once. For thorough research, hit multiple sources:
-
-```
-Understanding:  scout "topic"                              (Exa — summaries + content)
-Evidence:       scout "topic" --source scholar --after 2024 (Scholar — papers + citations)
-Current:        scout "topic" --source news                 (News — what's happening now)
-Exact recall:   scout '"term" site:x.com' --source google   (Google — find specific mentions)
-Community:      scout "topic" --source hn                   (HN — practitioner opinions)
-Users:          scout "topic" --source reddit                (Reddit — real user experiences)
-Code:           gh api search/repositories -f q="topic"     (GitHub — implementations)
+# github repos and code
+gh api search/repositories -f q="spaced repetition" -f sort=stars -f per_page=5
 ```
 
-Launch subagents in parallel for independent sub-questions. Each subagent searches 2-3 sources.
+## Sources
 
-### Phase 3: Expand and Extract
+Each source answers a different question. Pick based on what you need.
 
-After search, expand the most promising results:
-- `scout '?abc:1,2,3' --raw` — full text, instant (Exa results have stored text)
-- `scout '?abc:1' -c "What are the key findings?"` — Gemini-analyzed
-- Token estimates shown on stderr — use to decide read all vs. pick shortest vs. summarize
+| Source | Flag | Best for | Cost |
+|--------|------|----------|------|
+| Exa | (default) | Understanding topics, full content | ~$0.01 |
+| Google | `--source google` | Exact phrases, `site:`, niche terms | ~$0.001 |
+| Scholar | `--source scholar` | Papers, citation counts | ~$0.001 |
+| News | `--source news` | Current events, timestamped | ~$0.001 |
+| HN | `--source hn` | Tech community opinions | free |
+| Reddit | `--source reddit` | User opinions, consumer sentiment | ~$0.001 |
+| GitHub | `gh api search/...` | Code, repos, issues | free |
 
-For Reddit/HN: drill into comment threads for real opinions. Karma badges indicate credibility.
+## Search commands
 
-### Phase 4: Gap Analysis (the expert move)
+```bash
+# Exa (default) — understanding, summaries, full stored content
+scout "query" --num 5
+scout "query" --deep                    # thorough multi-step (slower)
+scout "query" --days 30                 # recent only
+scout "query" --category "research paper"  # also: news, company, people
+scout "query" --domains "nature.com,arxiv.org"
 
-After each round, ask: "What's MISSING?"
-- What contradicts what I found?
-- What's the strongest counterargument?
-- Which claims have only one source?
-- What angle haven't I searched yet?
+# Google — exact recall, site filtering
+scout "query" --source google --num 5
+scout '"exact phrase" site:reddit.com' --source google
+# IMPORTANT: returns answer box, "people also ask", and related searches on stderr
+# Use related searches to discover follow-up queries
 
-Use Google's "Related searches" and "People also ask" to discover queries you didn't think of.
+# Scholar — academic papers
+scout "query terms" --source scholar --num 5
+scout "query terms" --source scholar --after 2024
+# Auto-quotes first 2 words. Use specific terms not broad ones.
+# Citation counts shown: >100 = foundational, >10 = established, 0 = new
 
-Run additional targeted searches to fill gaps. Repeat until:
-- Core claims are corroborated by 3+ independent sources
-- New searches return mostly redundant information
-- All sub-questions from planning phase are answered
+# News — current events
+scout "topic" --source news --num 5
 
-### Phase 5: Verify
+# HN — stories and comments
+scout "topic" --source hn --num 5       # stories
+scout "topic" --source hn --comments    # search ALL comments globally
+scout "hn:47050215" --source hn         # top comments on story (HN-ranked)
+scout "hn:47050215 pricing" --source hn # filtered comments in story
 
-For every important claim:
-- Is it supported by 2+ independent sources?
-- Who is behind the source? (lateral reading)
-- Is the claim accurately represented? (check original, not summary)
-- For quantitative claims: trace to primary data
-- For community opinions: check karma/credibility of the commenter
+# Reddit — posts and comments
+scout "topic" --source reddit --num 5
+scout "topic" --source reddit --subreddit Teachers
+scout "reddit:/r/sub/comments/id/slug/" --source reddit  # load thread
 
-Assign confidence:
-- HIGH: 2+ independent, credible sources agree
-- MEDIUM: 1 reliable source, or 2+ with caveats
-- LOW: Single source, or inference from related data
-- UNVERIFIED: Stated but not confirmed
+# GitHub — repos, code, issues
+gh api search/repositories -f q="topic" -f sort=stars -f per_page=5
+gh api search/repositories -f q="topic in:readme" -f per_page=5
+gh api search/code -f q="pattern language:typescript" -f per_page=5
+gh api search/issues -f q="topic type:issue" -f sort=comments -f per_page=5
+```
 
-### Phase 6: Synthesize
+## Expand results
 
-Organize by theme, not by source. Surface contradictions explicitly. Flag uncertainty.
+```bash
+scout '?abc:1,2,3' --raw        # full text (instant for Exa, uses Firecrawl for HN/Reddit)
+scout '?abc:1' -c "question"    # Gemini-analyzed with your question as focus
+scout '?abc:all' --raw           # all results
+```
 
-## Patterns That Work
+Token estimates shown on stderr before content. Use to decide: read all, pick shortest, or summarize.
 
-**Broad-to-narrow**: Start with Exa for landscape, then Scholar for rigor, community for reality-check, primary sources for verification.
+## Credibility signals
 
-**Follow the citations**: Google's related searches and "people also ask" reveal adjacent queries. Reddit and HN comments contain links to primary sources. Follow them.
+- **Scholar**: citation count (cited 271x = authoritative)
+- **HN/Reddit comments**: karma badges — no badge = new user, * = established (1K+/5K+), ** = authority (10K+/50K+)
+- **HN stories**: point count + comment count
+- **Reddit posts**: score + subreddit context
+- **Google**: answer box = Google's highest-authority answer
 
-**Reddit discovery via Google**: Reddit's own search is weak. Always use `scout "topic" --source reddit` (which uses Google with site:reddit.com under the hood). Then drill into comment threads.
+## Research workflow
 
-**Scholar needs specificity**: "AI tutoring effectiveness" returns garbage. "AI tutoring" effectiveness RCT returns actual studies. Auto-quoting helps but specific terms help more.
+For thorough research, follow this sequence. For quick lookups, just search and expand.
 
-**HN comment mining**: `--comments` flag searches ALL HN comments globally. Finds hidden gems buried in unrelated threads. Story context (title + ID) shown so you can drill in.
+### 1. Plan
+Decompose into 3-7 sub-questions. Think: what angles exist? Technical, contrarian, user experience, financial, historical.
 
-**GitHub for ground truth**: When someone claims "X is possible" or "Y approach works," search GitHub for actual implementations. Code doesn't lie.
+### 2. Search across sources
+Don't run the same query everywhere. Pick the right source per question:
+- Need to understand? → Exa
+- Need evidence? → Scholar
+- Need current state? → News
+- Need to find a specific mention? → Google
+- Need developer opinions? → HN
+- Need user/consumer opinions? → Reddit
+- Need actual code/implementations? → GitHub
 
-**Asymmetric compute**: Use cheap sources (HN, Reddit, Google) for volume discovery. Use Exa for deep content. Reserve Gemini analysis (`-c` flag) for the most important sources only.
+Launch subagents in parallel for independent sub-questions.
 
-## Anti-Patterns
+### 3. Follow the leads
+- Google's "Related searches" reveal queries you didn't think of
+- Reddit/HN comments contain links to primary sources — follow them
+- HN `--comments` finds hidden discussions in unrelated threads
+- Scholar papers cite other papers — search for the most-cited ones
 
-- Searching the same query on every source (wastes tokens, most overlap on top results)
-- Using Scholar for broad topics (returns survey papers with 0 citations)
-- Using HN for non-tech topics (returns noise)
-- Accepting the first plausible answer without cross-referencing
-- Running Exa AND Google on the same conceptual query (they overlap — pick one based on need)
-- Expanding all results instead of reading token estimates and picking the best 2-3
-- Forgetting to check Google's related searches (free follow-up query ideas)
+### 4. Gap analysis
+After each round: what's MISSING? What contradicts? Which claims have only one source? What's the strongest counterargument?
+
+### 5. Verify
+- Important claims need 2+ independent sources
+- Check who's behind each source (lateral reading)
+- For numbers: trace to primary data
+- For opinions: check commenter credibility (karma, account age)
+
+Confidence levels: HIGH (2+ credible sources agree), MEDIUM (1 reliable source), LOW (single source or inference), UNVERIFIED (stated but not confirmed).
+
+## Source-specific tips
+
+* **Choosing sources wisely** [references/source-selection.md](references/source-selection.md)
+* **Scholar search strategies** [references/scholar-tips.md](references/scholar-tips.md)
+* **Reddit and HN deep dives** [references/community-research.md](references/community-research.md)
+* **Verification patterns** [references/verification.md](references/verification.md)

@@ -11,15 +11,14 @@ const AGENT_PATHS: Array<{ name: string; dir: string }> = [
   { name: "Gemini", dir: join(homedir(), ".gemini", "skills", SKILL_NAME) },
 ];
 
-function findSkillSource(): string | null {
-  // Check relative to the binary location, then common paths
+function findSkillDir(): string | null {
   const candidates = [
-    join(dirname(process.execPath), "skills", "research", "SKILL.md"),
-    join(dirname(process.execPath), "..", "skills", "research", "SKILL.md"),
-    join(dirname(Bun.main), "..", "skills", "research", "SKILL.md"),
+    join(dirname(process.execPath), "skills", "research"),
+    join(dirname(process.execPath), "..", "skills", "research"),
+    join(dirname(Bun.main), "..", "skills", "research"),
   ];
   for (const p of candidates) {
-    if (existsSync(p)) return p;
+    if (existsSync(join(p, "SKILL.md"))) return p;
   }
   return null;
 }
@@ -31,34 +30,28 @@ export function run(flags: Record<string, string | boolean>): void {
     return;
   }
 
-  const source = findSkillSource();
-  if (!source) {
-    console.error("Error: SKILL.md not found. Make sure scout is installed properly.");
+  const sourceDir = findSkillDir();
+  if (!sourceDir) {
+    console.error("Error: skill files not found. Make sure scout is installed properly.");
     process.exit(1);
   }
 
   let installed = 0;
 
   for (const agent of AGENT_PATHS) {
-    // Only install for agents that have a config dir (i.e. are actually installed)
     const agentRoot = dirname(agent.dir);
     const agentBase = dirname(agentRoot);
     if (!existsSync(agentBase)) continue;
 
-    if (!existsSync(agent.dir)) mkdirSync(agent.dir, { recursive: true });
-
-    const dest = join(agent.dir, "SKILL.md");
-    cpSync(source, dest);
-    console.log(`  [ok] ${agent.name}: ${dest}`);
+    cpSync(sourceDir, agent.dir, { recursive: true });
+    console.log(`  [ok] ${agent.name}: ${agent.dir}`);
     installed++;
   }
 
   if (installed === 0) {
-    // No agent dirs found — install for Claude Code anyway since scout is used there
     const fallback = AGENT_PATHS[0]!;
-    if (!existsSync(fallback.dir)) mkdirSync(fallback.dir, { recursive: true });
-    cpSync(source, join(fallback.dir, "SKILL.md"));
-    console.log(`  [ok] ${fallback.name}: ${join(fallback.dir, "SKILL.md")}`);
+    cpSync(sourceDir, fallback.dir, { recursive: true });
+    console.log(`  [ok] ${fallback.name}: ${fallback.dir}`);
     installed = 1;
   }
 
