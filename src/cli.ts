@@ -324,8 +324,13 @@ async function main(): Promise<void> {
   await search.run(query, args);
 }
 
+// Exit codes: 0=success, 1=transient, 2=config, 3=bad input, 4=rate limited
 main().catch((err: unknown) => {
   const message = err instanceof Error ? err.message : String(err);
   console.error(`Error: ${message}`);
+
+  if (/API_KEY not set|not configured/i.test(message)) process.exit(2);
+  if (/rate limit|429|too many/i.test(message)) process.exit(4);
+  if (/usage|invalid|no query|no result at index/i.test(message)) process.exit(3);
   process.exit(1);
 });

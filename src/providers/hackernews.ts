@@ -109,45 +109,36 @@ function credBadge(karma: number): string {
   return "";
 }
 
-interface FirebaseItem {
+interface AlgoliaItem {
   id: number;
-  by?: string;
+  author?: string;
   text?: string;
-  kids?: number[];
-  time?: number;
-  type?: string;
+  children?: AlgoliaItem[];
+  created_at_i?: number;
 }
 
-async function fetchFirebaseComments(storyId: string, limit: number): Promise<SearchResult[]> {
-  const storyRes = await fetch(`https://hacker-news.firebaseio.com/v0/item/${storyId}.json`);
-  if (!storyRes.ok) return [];
-  const story = (await storyRes.json()) as FirebaseItem;
-  if (!story.kids?.length) return [];
+async function fetchAlgoliaComments(storyId: string, limit: number): Promise<SearchResult[]> {
+  const res = await fetch(`${BASE_URL}/items/${storyId}`);
+  if (!res.ok) return [];
+  const story = (await res.json()) as AlgoliaItem;
+  if (!story.children?.length) return [];
 
-  const topKids = story.kids.slice(0, limit);
-  const comments = await Promise.all(
-    topKids.map(async (id) => {
-      try {
-        const res = await fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
-        if (!res.ok) return null;
-        return (await res.json()) as FirebaseItem;
-      } catch { return null; }
-    }),
-  );
+  const topComments = story.children
+    .filter((c) => c.text && c.author)
+    .slice(0, limit);
 
-  const valid = comments.filter((c): c is FirebaseItem => c !== null && !!c.text && c.type === "comment");
-  const karmaMap = await getHnKarma(valid.map((c) => c.by ?? ""));
+  const karmaMap = await getHnKarma(topComments.map((c) => c.author!));
 
-  return valid.map((c) => {
-    const author = c.by ?? "unknown";
+  return topComments.map((c) => {
+    const author = c.author ?? "unknown";
     const karma = karmaMap.get(author) ?? 0;
     const badge = credBadge(karma);
-    const replies = c.kids?.length ?? 0;
+    const replies = c.children?.length ?? 0;
     return {
       title: `${author}${badge} (${karma.toLocaleString()} karma${replies > 0 ? `, ${replies} replies` : ""})`,
       url: `https://news.ycombinator.com/item?id=${c.id}`,
       author,
-      publishedDate: c.time ? new Date(c.time * 1000).toISOString() : undefined,
+      publishedDate: c.created_at_i ? new Date(c.created_at_i * 1000).toISOString() : undefined,
       text: c.text ? stripHtml(c.text) : undefined,
     };
   });
@@ -189,5 +180,5 @@ export async function comments(
   if (options.query) {
     return searchAlgoliaComments(storyId, options.query, limit);
   }
-  return fetchFirebaseComments(storyId, limit);
+  return fetchAlgoliaComments(storyId, limit);
 }
