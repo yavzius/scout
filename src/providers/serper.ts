@@ -1,5 +1,6 @@
 import type { SearchResult } from "../types.js";
 import { keys } from "../lib/config.js";
+import { status } from "../lib/output.js";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -12,6 +13,9 @@ interface SerperResult {
 
 interface SerperResponse {
   organic: SerperResult[];
+  answerBox?: { snippet?: string; title?: string; link?: string };
+  peopleAlsoAsk?: Array<{ question: string }>;
+  relatedSearches?: Array<{ query: string }>;
 }
 
 interface SerperNewsResult {
@@ -74,6 +78,16 @@ export async function search(
     q: query,
     num: options.numResults ?? 10,
   })) as SerperResponse;
+
+  if (data.answerBox?.snippet) {
+    status(`\n   Answer: ${data.answerBox.snippet}`);
+  }
+  if (data.peopleAlsoAsk?.length) {
+    status(`   Also asked: ${data.peopleAlsoAsk.map((q) => q.question).join(" | ")}`);
+  }
+  if (data.relatedSearches?.length) {
+    status(`   Related: ${data.relatedSearches.map((r) => r.query).join(" | ")}`);
+  }
 
   return (data.organic ?? []).map((r) => ({
     title: r.title,

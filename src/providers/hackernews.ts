@@ -14,6 +14,7 @@ interface HNHit {
   comment_text?: string;
   story_title?: string;
   story_url?: string;
+  story_id?: number;
 }
 
 interface HNResponse {
@@ -62,14 +63,17 @@ export async function search(
   const data = (await response.json()) as HNResponse;
 
   if (options.comments) {
-    return data.hits.map((hit) => ({
-      title: hit.story_title ?? "(comment)",
-      url: `https://news.ycombinator.com/item?id=${hit.objectID}`,
-      author: hit.author,
-      publishedDate: hit.created_at,
-      summary: `Comment on: ${hit.story_title ?? "unknown"}`,
-      text: hit.comment_text ? stripHtml(hit.comment_text) : undefined,
-    }));
+    return data.hits.map((hit) => {
+      const storyId = hit.story_id ? `hn:${hit.story_id}` : "";
+      return {
+        title: `${hit.author} on "${hit.story_title ?? "unknown"}"`,
+        url: `https://news.ycombinator.com/item?id=${hit.objectID}`,
+        author: hit.author,
+        publishedDate: hit.created_at,
+        summary: storyId ? `${storyId} · ${hit.story_title}` : undefined,
+        text: hit.comment_text ? stripHtml(hit.comment_text) : undefined,
+      };
+    });
   }
 
   return data.hits.map((hit) => ({
@@ -105,23 +109,61 @@ function credBadge(karma: number): string {
   return "";
 }
 
-export async function comments(
-  storyId: string,
-  options: { numResults?: number; query?: string } = {},
-): Promise<SearchResult[]> {
-  const params = new URLSearchParams({
-    tags: `comment,story_${storyId}`,
-    hitsPerPage: String(options.numResults ?? 15),
+interface FirebaseItem {
+  id: number;
+  by?: string;
+  text?: string;
+  kids?: number[];
+  time?: number;
+  type?: string;
+}
+
+async function fetchFirebaseComments(storyId: string, limit: number): Promise<SearchResult[]> {
+  const storyRes = await fetch(`https://hacker-news.firebaseio.com/v0/item/${storyId}.json`);
+  if (!storyRes.ok) return [];
+  const story = (await storyRes.json()) as FirebaseItem;
+  if (!story.kids?.length) return [];
+
+  const topKids = story.kids.slice(0, limit);
+  const comments = await Promise.all(
+    topKids.map(async (id) => {
+      try {
+        const res = await fetch(`https://hacker-news.firebaseio.com/v0/item/${id}.json`);
+        if (!res.ok) return null;
+        return (await res.json()) as FirebaseItem;
+      } catch { return null; }
+    }),
+  );
+
+  const valid = comments.filter((c): c is FirebaseItem => c !== null && !!c.text && c.type === "comment");
+  const karmaMap = await getHnKarma(valid.map((c) => c.by ?? ""));
+
+  return valid.map((c) => {
+    const author = c.by ?? "unknown";
+    const karma = karmaMap.get(author) ?? 0;
+    const badge = credBadge(karma);
+    const replies = c.kids?.length ?? 0;
+    return {
+      title: `${author}${badge} (${karma.toLocaleString()} karma${replies > 0 ? `, ${replies} replies` : ""})`,
+      url: `https://news.ycombinator.com/item?id=${c.id}`,
+      author,
+      publishedDate: c.time ? new Date(c.time * 1000).toISOString() : undefined,
+      text: c.text ? stripHtml(c.text) : undefined,
+    };
   });
-  if (options.query) params.set("query", options.query);
+}
+
+async function searchAlgoliaComments(storyId: string, query: string, limit: number): Promise<SearchResult[]> {
+  const params = new URLSearchParams({
+    query,
+    tags: `comment,story_${storyId}`,
+    hitsPerPage: String(limit),
+  });
 
   const response = await fetch(`${BASE_URL}/search?${params}`);
-  if (!response.ok) {
-    throw new Error(`HN API error (${response.status})`);
-  }
+  if (!response.ok) throw new Error(`HN API error (${response.status})`);
 
   const data = (await response.json()) as HNResponse;
-
   const karmaMap = await getHnKarma(data.hits.map((h) => h.author));
 
   return data.hits.map((hit) => {
@@ -136,4 +178,16 @@ export async function comments(
       text: hit.comment_text ? stripHtml(hit.comment_text) : undefined,
     };
   });
+}
+
+export async function comments(
+  storyId: string,
+  options: { numResults?: number; query?: string } = {},
+): Promise<SearchResult[]> {
+  const limit = options.numResults ?? 15;
+
+  if (options.query) {
+    return searchAlgoliaComments(storyId, options.query, limit);
+  }
+  return fetchFirebaseComments(storyId, limit);
 }

@@ -30,8 +30,9 @@ export function printSearchResults(session: SearchSession, json: boolean): void 
     console.log(`[${i + 1}] ${r.title.slice(0, 80)}${author} | ${domain}${date}`);
     console.log(r.url);
 
-    const isMetadataSummary = !r.summary || /\d+ (points|comments|pts)/.test(r.summary);
+    const isMetadataSummary = !r.summary || /(\d+ (points|comments|pts)|^hn:)/.test(r.summary);
     if (r.text && isMetadataSummary) {
+      if (r.summary) console.log(`    ${r.summary}`);
       console.log(`    ${r.text}`);
     } else if (r.summary) {
       console.log(`    ${r.summary}`);

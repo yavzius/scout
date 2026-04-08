@@ -26,7 +26,8 @@ SEARCH
   --category CAT     Exa only: news, research paper, company, people, personal site, financial report
   --domains LIST     Exa only: comma-separated domains
   --subreddit NAME   Reddit only: filter to specific subreddit
-  --comments         HN only: search comments instead of stories
+  --comments         HN only: search comments globally (shows story context)
+  "hn:ID keyword"    HN only: search comments within a specific story
 
 EXTRACT
   scout '?abc:1,2,3'               Expand results by index (uses stored text, no extra API call)
@@ -46,7 +47,7 @@ DRILL INTO COMMENTS
   scout "hn:47584540" --source hn                          Load comments for HN story
   scout "reddit:/r/sub/comments/id/slug/" --source reddit  Load comments for Reddit post
 
-  Comment results show author credibility: ★ (established) ★★ (authority)
+  Comment results show author credibility: * (established) ** (authority)
 
 SETUP
   scout setup                      Show API key status
@@ -109,10 +110,12 @@ CHOOSING A SOURCE
     Returns: stories with point counts, or comments with full text
     Weak at: non-tech topics, small result sets
     Cost: free (no API key needed)
+    Tip: use short, simple queries — "Khan Academy" not "Khan Academy AI education evaluation"
     Features:
-      --comments          Search comments instead of stories
+      --comments          Search ALL HN comments globally (finds hidden discussions in unrelated threads)
       --days N            Filter to recent
-      "hn:47584540"       Load comments for a specific story (ID shown in results)
+      "hn:ID"             Top comments for a story, ranked by HN (best first)
+      "hn:ID keyword"     Search within a story's comments for specific topic
 
   --source reddit
     Best for: real user opinions, parent/teacher/consumer sentiment
@@ -149,7 +152,7 @@ THE FLOW
 TOKEN ESTIMATES
   When expanding, token estimates are shown on stderr before content:
 
-    📄 3 article(s):
+    -- 3 article(s):
        [1] Article title... (~2,041 tokens)
        [2] Another article... (~1,379 tokens)
        Total: ~3,420 tokens across 2 article(s)

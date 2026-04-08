@@ -63,13 +63,13 @@ export function run(positional: string[]): void {
     }
 
     saveApiKey(service as "exa" | "firecrawl" | "gemini", key);
-    console.log(`✓ ${info.name} API key saved`);
+    console.log(`[ok] ${info.name} API key saved`);
 
     // Check if all keys now configured, if so add to CLAUDE.md
     const allConfigured = getApiKeyStatus().every((s) => s.configured);
     if (allConfigured) {
       const { added } = ensureClaudeMd();
-      if (added) console.log("✓ Added scout to ~/.claude/CLAUDE.md");
+      if (added) console.log("[ok] Added scout to ~/.claude/CLAUDE.md");
     }
 
     return;
@@ -82,7 +82,7 @@ export function run(positional: string[]): void {
 
   for (const { service: svc, configured } of statuses) {
     const info = SERVICE_INFO[svc]!;
-    const icon = configured ? "✓" : "✗";
+    const icon = configured ? "[ok]" : "[--]";
     const state = configured ? "configured" : "missing";
     console.log(`  ${icon} ${info.name.padEnd(15)} ${state.padEnd(12)} ${info.purpose}`);
   }
@@ -92,9 +92,9 @@ export function run(positional: string[]): void {
   if (missing.length === 0) {
     const { added } = ensureClaudeMd();
     if (added) {
-      console.log("\n✓ Added scout to ~/.claude/CLAUDE.md");
+      console.log("\n[ok] Added scout to ~/.claude/CLAUDE.md");
     } else {
-      console.log("\n✓ Claude Code integration already configured.");
+      console.log("\n[ok] Claude Code integration already configured.");
     }
     console.log("\nAll keys configured. Ready to search.");
     return;
