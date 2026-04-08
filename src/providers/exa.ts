@@ -1,5 +1,6 @@
 import type { SearchOptions, ExaSearchBody, ExaSearchResponse, SearchResult } from "../types.js";
 import { keys } from "../lib/config.js";
+import { status } from "../lib/output.js";
 
 const BASE_URL = "https://api.exa.ai";
 
@@ -15,7 +16,7 @@ export async function search(query: string, options: SearchOptions = {}): Promis
     type: options.type ?? "auto",
     contents: {
       summary: { query },
-      highlights: { numSentences: 2, highlightsPerUrl: 1 },
+      text: true,
     },
   };
 
@@ -39,11 +40,16 @@ export async function search(query: string, options: SearchOptions = {}): Promis
 
   const data = (await response.json()) as ExaSearchResponse;
 
+  if (data.costDollars) {
+    status(`   ~$${data.costDollars.total.toFixed(4)}`);
+  }
+
   return data.results.map((r) => ({
     title: r.title ?? "(no title)",
     url: r.url,
     author: r.author,
     publishedDate: r.publishedDate,
-    summary: r.summary ?? r.highlights?.[0] ?? "",
+    summary: r.summary ?? "",
+    text: r.text,
   }));
 }

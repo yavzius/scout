@@ -10,7 +10,7 @@ export const VERSION = "0.1.0";
 
 // ── API Keys ────────────────────────────────────────────────────────────────
 
-const KEY_SERVICES = ["exa", "firecrawl", "gemini"] as const;
+const KEY_SERVICES = ["exa", "firecrawl", "gemini", "serper"] as const;
 type Service = (typeof KEY_SERVICES)[number];
 
 function loadApiKey(service: Service): string | undefined {
@@ -43,6 +43,7 @@ export const keys = {
   exa: loadApiKey("exa"),
   firecrawl: loadApiKey("firecrawl"),
   gemini: loadApiKey("gemini"),
+  serper: loadApiKey("serper"),
 };
 
 // ── Config File ─────────────────────────────────────────────────────────────

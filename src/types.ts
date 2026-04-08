@@ -6,6 +6,7 @@ export interface SearchResult {
   author?: string;
   publishedDate?: string;
   summary?: string;
+  text?: string;
 }
 
 export interface SearchSession {
@@ -58,8 +59,8 @@ export interface ExaSearchBody {
   startPublishedDate?: string;
   includeDomains?: string[];
   contents: {
-    summary: { query: string };
-    highlights: { numSentences: number; highlightsPerUrl: number };
+    summary?: { query: string };
+    text?: boolean | { maxCharacters: number };
   };
 }
 
@@ -69,11 +70,12 @@ export interface ExaResult {
   author?: string;
   publishedDate?: string;
   summary?: string;
-  highlights?: string[];
+  text?: string;
 }
 
 export interface ExaSearchResponse {
   results: ExaResult[];
+  costDollars?: { total: number };
 }
 
 // ── Firecrawl API ───────────────────────────────────────────────────────────
