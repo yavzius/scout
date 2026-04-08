@@ -1,53 +1,21 @@
 # scout
 
-Fast, structured web research from the terminal.
+Multi-source web research from the terminal. Built for AI agents.
 
-Scout is a three-stage research pipeline: **search** the web with [Exa](https://exa.ai), **extract** clean content with [Firecrawl](https://firecrawl.dev), and **analyze** it with [Gemini](https://ai.google.dev). Results are cached, sessions are tracked, and everything pipes cleanly into other tools.
+Scout searches across 6 sources — Exa, Google, Scholar, News, HackerNews, Reddit — and gives agents the right context to do their job. Each source has different strengths. Scout knows when to use each one.
 
 ```
-$ scout "attention is all you need" --category "research paper" --num 5
+$ scout "does AI tutoring actually work" --source google --num 3
 
-🔍 "attention is all you need" [category=research paper]
+-- "does AI tutoring actually work" [Google]
 
-[scout:a3f] 5 results:
+   Answer: Students who got both human and AI tutoring were able to correct misconceptions
+   and offer correct answers over 90% of the time...
+   Also asked: Is AI an effective tutor? | How much do AI tutors get paid?
+   Related: Does ai tutoring actually work reddit | Harvard AI tutor study | Brookings AI
 
-[1] Attention Is All You Need [2017-06-12]
-    arxiv.org — Vaswani et al.
-    "Proposes the Transformer architecture, replacing recurrence with self-attention..."
-
-[2] An Introduction to Attention Mechanisms [2023-11-15]
-    magazine.sebastianraschka.com — Sebastian Raschka
-    "A comprehensive overview of attention mechanisms in deep learning..."
-
+[af4] 3 results
 ...
-
-Extract: scout '?a3f:1,2,3' or scout '?a3f:all'
-```
-
-Then drill into any result:
-
-```
-$ scout '?a3f:1,2' -c "How does multi-head attention differ from single-head?"
-
-📄 Extracting 2 article(s) [analyze] with context...
-
-   [1] Attention Is All You Need...
-   [1] ⚡ Cached
-   [1] ✓ Analyzed (from cache)
-   [2] An Introduction to Attention Mechan...
-   [2] ✓ Analyzed
-
-══════════════════════════════════════════════════════════════════════════
-[1] Attention Is All You Need
-https://arxiv.org/abs/1706.03762
-══════════════════════════════════════════════════════════════════════════
-
-1. **CORE ARGUMENT**: Multi-head attention allows the model to jointly attend
-   to information from different representation subspaces at different positions...
-
-2. **KEY INSIGHTS**:
-   - Single-head attention averages over all positions, diluting focus...
-   ...
 ```
 
 ## Install
@@ -57,150 +25,135 @@ Requires [Bun](https://bun.sh) (v1.0+).
 ```bash
 git clone https://github.com/yavzius/scout.git
 cd scout
-bun install
-bun run build
-```
-
-This compiles a standalone binary. Move it to your PATH:
-
-```bash
+bun build --compile src/cli.ts --outfile scout
 cp scout ~/.local/bin/
-# or
-ln -s "$(pwd)/scout" ~/.local/bin/scout
-```
-
-Or run directly without compiling:
-
-```bash
-bun run src/cli.ts "your query"
 ```
 
 ## Setup
 
-Scout requires three API keys:
-
-| Service | Purpose | Get a key |
-|---------|---------|-----------|
-| [Exa](https://exa.ai) | Web search | [exa.ai](https://exa.ai) |
-| [Firecrawl](https://firecrawl.dev) | Page extraction | [firecrawl.dev](https://firecrawl.dev) |
-| [Gemini](https://ai.google.dev) | Content analysis | [aistudio.google.com](https://aistudio.google.com/apikey) |
-
-Configure them:
-
 ```bash
-scout setup exa <your-key>
-scout setup firecrawl <your-key>
-scout setup gemini <your-key>
+scout setup exa <key>       # exa.ai — web search (required)
+scout setup serper <key>     # serper.dev — google, scholar, news, reddit (required)
+scout setup firecrawl <key>  # firecrawl.dev — direct URL extraction (optional)
+scout setup gemini <key>     # aistudio.google.com — content analysis (optional)
 ```
 
-Keys are saved to `~/.config/{service}/api_key` with `0600` permissions. Environment variables (`EXA_API_KEY`, `FIRECRAWL_API_KEY`, `GEMINI_API_KEY`) take precedence.
-
-Once all keys are configured, `scout setup` automatically adds a scout reference to `~/.claude/CLAUDE.md` — so Claude Code knows how to use it as a research tool.
-
-Check status anytime:
+Install the research skill for your AI agent:
 
 ```bash
-scout setup
+scout install --skills       # installs for Claude Code, Codex, OpenCode, Gemini
 ```
+
+## Sources
+
+| Source | Flag | Best for | Cost |
+|--------|------|----------|------|
+| Exa | (default) | Understanding topics, full content | ~$0.01/q |
+| Google | `--source google` | Exact match, `site:` filters, related searches | ~$0.001/q |
+| Scholar | `--source scholar` | Academic papers, citation counts | ~$0.001/q |
+| News | `--source news` | Current events, timestamped | ~$0.001/q |
+| HN | `--source hn` | Tech community opinions, comments | free |
+| Reddit | `--source reddit` | User opinions, consumer sentiment | ~$0.001/q |
+
+Run `scout sources --help` for detailed guidance on when to use each.
 
 ## Usage
 
 ### Search
 
 ```bash
-scout "query"                                    # Basic search
-scout "query" --num 5                            # Limit results
-scout "query" --category news --days 7           # Recent news
-scout "query" --category "research paper"        # Academic papers
-scout "query" --domains arxiv.org,nature.com     # Specific domains
-scout "query" --exclude reddit.com               # Exclude domains
-scout "query" --type neural                      # Force neural search
-scout "query" --after 2024-01-01                 # Date filtering
+scout "how does spaced repetition work"                 # Exa (default)
+scout "\"Lalilo\" site:reddit.com" --source google      # Google exact match
+scout "productive failure mathematics" --source scholar --after 2024  # Papers
+scout "edtech evaluation 2026" --source news            # Current events
+scout "Claude Code" --source hn --days 30               # HN stories
+scout "Alpha School" --source reddit                    # Reddit via Google
 ```
 
-Each search returns a session ID (e.g., `a3f`) for referencing results later.
+### Expand results
 
-### Extract & Analyze
-
-Extract results from a search session:
+Search stores full page text. Expanding is instant and free:
 
 ```bash
-scout '?a3f:1,2,3'        # Extract specific results by index
-scout '?a3f:all'           # Extract top 5
-scout '?:1,2'              # From most recent session
+scout '?abc:1,2,3' --raw              # full text
+scout '?abc:1' -c "key findings?"     # Gemini-analyzed
 ```
 
-Add research context for targeted analysis:
+### Drill into comments
 
 ```bash
-scout '?a3f:1,2' -c "What are the practical limitations?"
-scout '?a3f:1,2' --context-file ./research-notes.md
+# HN: top comments ranked by community
+scout "hn:47050215" --source hn
+# HN: filtered comments within a story
+scout "hn:47050215 pricing" --source hn
+# HN: search ALL comments globally (finds hidden discussions)
+scout "Claude Code" --source hn --comments
+
+# Reddit: load comment thread with karma badges
+scout "reddit:/r/Teachers/comments/abc123/title/" --source reddit
 ```
 
-Get raw markdown (skip Gemini analysis):
+### Direct URL extraction
 
 ```bash
-scout '?a3f:1' --raw
-scout '?a3f:1' --raw --limit 20000    # More content
-```
-
-### Direct URL
-
-Extract and analyze any URL directly:
-
-```bash
-scout extract https://example.com/article
 scout extract https://example.com/article --raw
 scout extract https://example.com/article -c "What's the main argument?"
 ```
 
-### Cache
-
-Extractions are cached for 24 hours to avoid redundant API calls:
+### Help
 
 ```bash
-scout cache              # Show stats
-scout cache clear        # Clear cache
+scout --help                # quick reference
+scout sources --help        # when to use each source
+scout extract --help        # how expand works
 ```
 
-### JSON Output
+## How it works
 
-Every command supports `--json` for piping into other tools:
+**Search flow:** query → source provider → results with summaries → stored in session
 
-```bash
-scout "query" --json | jq '.results[].url'
-scout '?a3f:1' --json | jq '.content'
-```
+**Expand flow:** session ID → stored text returned instantly (no extra API call for Exa results)
+
+**Reddit:** uses Google (`site:reddit.com`) for discovery, Reddit API for comments. Shows karma badges for author credibility.
+
+**HN:** uses Algolia for search, Firebase for ranked comments. Shows karma and reply counts.
+
+**Scholar:** auto-quotes first 2 words for better results. Filters by year client-side.
+
+**Google:** returns answer box, "people also ask", and related searches alongside results.
 
 ## Architecture
 
 ```
 src/
-├── cli.ts              ← Entry point, arg parsing, command routing
-├── types.ts            ← All shared TypeScript interfaces
+├── cli.ts              ← entry point, arg parsing, routing
+├── types.ts            ← shared interfaces
 ├── commands/
-│   ├── search.ts       ← Search command: query → Exa → session
-│   ├── extract.ts      ← Extract command: session → Firecrawl → Gemini
-│   ├── cache.ts        ← Cache management
+│   ├── search.ts       ← multi-source search routing
+│   ├── extract.ts      ← expand from session or direct URL
+│   ├── install.ts      ← skill installation for agents
+│   ├── cache.ts        ← cache management
 │   └── setup.ts        ← API key configuration
 ├── providers/
-│   ├── exa.ts          ← Exa API client (typed request/response)
-│   ├── firecrawl.ts    ← Firecrawl API client (typed)
-│   └── gemini.ts       ← Gemini API client (typed)
-└── lib/
-    ├── config.ts       ← API key loading, config file support
-    ├── cache.ts        ← Extraction cache (24h TTL, 50 entry cap)
-    ├── session.ts      ← Search session state (2h TTL, 10 max)
-    └── output.ts       ← Terminal + JSON output formatting
+│   ├── exa.ts          ← Exa API (search + content)
+│   ├── serper.ts       ← Google, Scholar, News via Serper
+│   ├── hackernews.ts   ← HN Algolia + Firebase
+│   ├── reddit.ts       ← Google discovery + Reddit API
+│   ├── firecrawl.ts    ← direct URL extraction
+│   └── gemini.ts       ← content analysis
+├── lib/
+│   ├── config.ts       ← API keys, config loading
+│   ├── cache.ts        ← extraction cache (24h TTL)
+│   ├── session.ts      ← search sessions (200 max)
+│   ├── output.ts       ← terminal formatting
+│   └── validate.ts     ← error page detection
+└── skills/
+    └── research/
+        ├── SKILL.md           ← research skill for AI agents
+        └── references/        ← deep topic guides
 ```
 
-**Data flow:** CLI → Command → Provider(s) → Output
-
-- **Providers** are pure API clients. Each handles one external service with fully typed requests and responses.
-- **Commands** orchestrate the workflow for each user action, composing providers and lib utilities.
-- **Lib** modules handle stateless concerns: caching, session persistence, configuration, formatting.
-
-No runtime dependencies. Compiles to a single binary via `bun build --compile`.
+No runtime dependencies. Compiles to a single binary.
 
 ## License
 
