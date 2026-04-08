@@ -19,21 +19,28 @@ export function printSearchResults(session: SearchSession, json: boolean): void 
   for (let i = 0; i < session.results.length; i++) {
     const r = session.results[i]!;
     const domain = new URL(r.url).hostname.replace("www.", "");
-    const date = r.publishedDate ? ` | ${r.publishedDate.slice(0, 10)}` : "";
+    const date = r.publishedDate
+      ? ` | ${r.publishedDate.includes("T") ? r.publishedDate.slice(0, 10) : r.publishedDate}`
+      : "";
     const author = r.author && !domain.includes(r.author.toLowerCase().replace(/\s/g, ""))
       ? ` — ${r.author.slice(0, 30)}`
       : "";
 
+    console.log(`\n${"═".repeat(70)}`);
     console.log(`[${i + 1}] ${r.title.slice(0, 80)}${author} | ${domain}${date}`);
-    if (r.summary) {
-      const truncated = r.summary.length > 90 ? `${r.summary.slice(0, 90)}...` : r.summary;
-      console.log(`    ${truncated}`);
+    console.log(r.url);
+
+    const isMetadataSummary = !r.summary || /\d+ (points|comments|pts)/.test(r.summary);
+    if (r.text && isMetadataSummary) {
+      console.log(`    ${r.text}`);
+    } else if (r.summary) {
+      console.log(`    ${r.summary}`);
     }
   }
 
   const topN = Math.min(3, session.results.length);
   const indices = Array.from({ length: topN }, (_, i) => i + 1).join(",");
-  console.log(`scout '?${session.id}:${indices}'`);
+  console.log(`\nscout '?${session.id}:${indices}'`);
 }
 
 // ── Extracted Articles ──────────────────────────────────────────────────────
@@ -45,8 +52,9 @@ export function printArticles(articles: ExtractedArticle[], json: boolean): void
   }
 
   for (const article of articles) {
-    console.log(`\n[${article.index}] ${article.title} | ${new URL(article.url).hostname.replace("www.", "")}`);
-    console.log(article.url);
+    console.log(`\n${"═".repeat(70)}`);
+    console.log(`[${article.index}] ${article.title}`);
+    console.log(`${"═".repeat(70)}\n`);
     console.log(article.content);
   }
 }

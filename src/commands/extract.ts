@@ -24,59 +24,21 @@ function loadContext(args: ParsedArgs): string | undefined {
   return undefined;
 }
 
-// ── Single Article Processing ───────────────────────────────────────────────
+// ── Analyze content with Gemini ─────────────────────────────────────────────
 
-async function processArticle(
-  index: number,
+async function analyzeContent(
+  content: string,
   title: string,
   url: string,
-  author: string | undefined,
-  raw: boolean,
-  noCache: boolean,
-  limit: number,
   context?: string,
-): Promise<ExtractedArticle | null> {
-  status(`   [${index}] ${title.slice(0, 50)}...`);
-
-  const extracted = await firecrawl.scrape(url, { noCache });
-
-  if (!extracted.success || !extracted.content) {
-    const reason = extracted.error ?? "unknown";
-    status(`   [${index}] ✗ Failed (${reason})`);
-    return null;
+): Promise<string | null> {
+  try {
+    return await gemini.analyze(content, title, url, context);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message === "EMPTY_PAGE") return null;
+    throw err;
   }
-
-  if (extracted.cached) status(`   [${index}] ⚡ Cached`);
-
-  // Check for error pages before sending to Gemini
-  const errorPageReason = isErrorPage(extracted.content);
-  if (errorPageReason) {
-    status(`   [${index}] ✗ Skipped (${errorPageReason})`);
-    return null;
-  }
-
-  let content: string;
-
-  if (raw) {
-    content = extracted.content;
-    if (content.length > limit) {
-      content = `${content.slice(0, limit)}\n\n[...truncated at ${limit} chars, use --limit N for more]`;
-    }
-  } else {
-    try {
-      content = await gemini.analyze(extracted.content, title, url, context);
-      status(`   [${index}] ✓ Analyzed${extracted.cached ? " (from cache)" : ""}`);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (message === "EMPTY_PAGE") {
-        status(`   [${index}] ✗ Skipped (empty/error page)`);
-        return null;
-      }
-      throw err;
-    }
-  }
-
-  return { index, title, url, author, content };
 }
 
 // ── Extract from Session ────────────────────────────────────────────────────
@@ -92,7 +54,6 @@ export async function fromSession(command: string, args: ParsedArgs): Promise<vo
     throw new Error("GEMINI_API_KEY not set (use --raw for markdown only)");
   }
 
-  // Parse session ID and indices from "abc:1,2,3"
   let sessionId: string | undefined;
   let action: string;
 
@@ -117,19 +78,76 @@ export async function fromSession(command: string, args: ParsedArgs): Promise<vo
     throw new Error(`Invalid selection: ${action}. Use numbers like '1,2,3' or 'all'`);
   }
 
-  const mode = raw ? "raw" : "analyze";
-  status(`\n📄 Extracting ${indices.length} article(s) [${mode}]${context ? " with context" : ""}...\n`);
+  // Show token estimates first so agent can decide
+  status(`\n📄 ${indices.length} article(s)${context ? " with context" : ""}:\n`);
 
-  const promises = indices.map((idx) => {
+  let totalTokens = 0;
+  const available: Array<{ idx: number; tokens: number; content: string; result: typeof session.results[0] }> = [];
+
+  for (const idx of indices) {
     const result = session.results[idx - 1];
     if (!result) {
       status(`   [${idx}] No result at index ${idx}`);
-      return Promise.resolve(null);
+      continue;
     }
-    return processArticle(idx, result.title, result.url, result.author, raw, noCache, limit, context);
-  });
 
-  const articles = (await Promise.all(promises)).filter((a): a is ExtractedArticle => a !== null);
+    let content: string | undefined = result.text;
+
+    if (content) {
+      status(`   [${idx}] ⚡ Using stored text`);
+    } else {
+      status(`   [${idx}] Fetching via Firecrawl...`);
+      const extracted = await firecrawl.scrape(result.url, { noCache });
+      if (!extracted.success || !extracted.content) {
+        status(`   [${idx}] ✗ Failed (${extracted.error ?? "unknown"})`);
+        continue;
+      }
+      if (extracted.cached) status(`   [${idx}] ⚡ Cached`);
+      content = extracted.content;
+    }
+
+    const errorPageReason = isErrorPage(content);
+    if (errorPageReason) {
+      status(`   [${idx}] ✗ Skipped (${errorPageReason})`);
+      continue;
+    }
+
+    const tokens = Math.ceil(content.length / 4);
+    totalTokens += tokens;
+    available.push({ idx, tokens, content, result });
+    status(`   [${idx}] ${result.title.slice(0, 50)}... (~${tokens.toLocaleString()} tokens)`);
+  }
+
+  status(`\n   Total: ~${totalTokens.toLocaleString()} tokens across ${available.length} article(s)\n`);
+
+  const articles: ExtractedArticle[] = [];
+
+  for (const { idx, content, result } of available) {
+    let finalContent: string;
+
+    if (raw) {
+      finalContent = content;
+      if (finalContent.length > limit) {
+        finalContent = `${finalContent.slice(0, limit)}\n\n[...truncated at ${limit} chars, use --limit N for more]`;
+      }
+    } else {
+      const analyzed = await analyzeContent(content, result.title, result.url, context);
+      if (!analyzed) {
+        status(`   [${idx}] ✗ Skipped (empty/error page)`);
+        continue;
+      }
+      finalContent = analyzed;
+      status(`   [${idx}] ✓ Analyzed`);
+    }
+
+    articles.push({
+      index: idx,
+      title: result.title,
+      url: result.url,
+      author: result.author,
+      content: finalContent,
+    });
+  }
 
   if (articles.length === 0) {
     status("No articles extracted.");
@@ -139,7 +157,7 @@ export async function fromSession(command: string, args: ParsedArgs): Promise<vo
   printArticles(articles, json);
 }
 
-// ── Extract Direct URL ──────────────────────────────────────────────────────
+// ── Extract Direct URL (always uses Firecrawl) ─────────────────────────────
 
 export async function fromUrl(url: string, args: ParsedArgs): Promise<void> {
   const json = args.flags.json === true;
