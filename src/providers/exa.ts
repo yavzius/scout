@@ -20,11 +20,8 @@ export async function search(query: string, options: SearchOptions = {}): Promis
   };
 
   if (options.startPublishedDate) body.startPublishedDate = options.startPublishedDate;
-  if (options.endPublishedDate) body.endPublishedDate = options.endPublishedDate;
   if (options.category) body.category = options.category;
   if (options.includeDomains?.length) body.includeDomains = options.includeDomains;
-  if (options.excludeDomains?.length) body.excludeDomains = options.excludeDomains;
-  if (options.livecrawl) body.livecrawl = options.livecrawl;
 
   const response = await fetch(`${BASE_URL}/search`, {
     method: "POST",

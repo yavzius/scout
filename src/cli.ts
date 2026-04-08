@@ -17,11 +17,11 @@ SEARCH
   scout search "query"             Same as above
 
   --num N            Number of results (default: 5)
+  --deep             Thorough multi-step search (slower, better for complex queries)
   --days N           Results from last N days
-  --category CAT     news, research paper, tweet, company, people, pdf
+  --category CAT     news, research paper, company, people, personal site, financial report
   --domains LIST     Comma-separated domains to search
   --after DATE       Results after YYYY-MM-DD
-  --before DATE      Results before YYYY-MM-DD
 
 EXTRACT
   scout '?abc:1,2,3'               Extract results by index
@@ -114,8 +114,8 @@ async function main(): Promise<void> {
 
   const KNOWN_FLAGS = new Set([
     "help", "version", "json", "raw", "no-cache", "context", "context-file",
-    "num", "type", "category", "after", "before", "days", "domains",
-    "exclude", "livecrawl", "limit", "max-results", "extract", "provider",
+    "num", "deep", "type", "category", "after", "before", "days", "domains",
+    "exclude", "max-age", "livecrawl", "limit", "max-results", "extract", "provider",
   ]);
 
   for (const key of Object.keys(args.flags)) {

@@ -16,14 +16,11 @@ export interface SearchSession {
 }
 
 export interface SearchOptions {
-  type?: "auto" | "neural" | "keyword";
+  type?: "auto" | "deep";
   category?: string;
   numResults?: number;
   startPublishedDate?: string;
-  endPublishedDate?: string;
   includeDomains?: string[];
-  excludeDomains?: string[];
-  livecrawl?: "never" | "fallback" | "preferred" | "always";
 }
 
 // ── Extract ─────────────────────────────────────────────────────────────────
@@ -59,10 +56,7 @@ export interface ExaSearchBody {
   type: string;
   category?: string;
   startPublishedDate?: string;
-  endPublishedDate?: string;
   includeDomains?: string[];
-  excludeDomains?: string[];
-  livecrawl?: string;
   contents: {
     summary: { query: string };
     highlights: { numSentences: number; highlightsPerUrl: number };
@@ -124,9 +118,7 @@ export interface GeminiResponse {
 export interface ScoutConfig {
   defaults?: {
     numResults?: number;
-    searchType?: "auto" | "neural" | "keyword";
     includeDomains?: string[];
-    excludeDomains?: string[];
   };
 }
 

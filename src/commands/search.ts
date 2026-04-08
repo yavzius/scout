@@ -8,31 +8,29 @@ export async function run(query: string, args: ParsedArgs): Promise<void> {
   const config = loadConfig();
   const json = args.flags.json === true;
 
+  // Deprecation warnings for removed flags
+  if (args.flags.type) console.error("Warning: --type is deprecated. Use --deep for thorough search.");
+  if (args.flags.exclude) console.error("Warning: --exclude is deprecated. Use --domains to scope positively.");
+  if (args.flags["max-age"]) console.error("Warning: --max-age is deprecated. Use --days or --after for recency.");
+  if (args.flags.before) console.error("Warning: --before is deprecated. Use --days or --after.");
+  if (args.flags.livecrawl) console.error("Warning: --livecrawl is deprecated. Use --days or --after for recency.");
+
   const options: SearchOptions = {
-    type: (args.flags.type as SearchOptions["type"]) ?? config.defaults?.searchType,
+    type: args.flags.deep ? "deep" : "auto",
     category: args.flags.category as string | undefined,
     numResults: args.flags.num ? parseInt(args.flags.num as string, 10) : (config.defaults?.numResults ?? 5),
-    livecrawl: args.flags.livecrawl as SearchOptions["livecrawl"],
     includeDomains: config.defaults?.includeDomains,
-    excludeDomains: config.defaults?.excludeDomains,
   };
 
-  if (args.flags.after) {
-    options.startPublishedDate = `${args.flags.after as string}T00:00:00.000Z`;
-  }
-  if (args.flags.before) {
-    options.endPublishedDate = `${args.flags.before as string}T23:59:59.000Z`;
-  }
   if (args.flags.days) {
     const d = new Date();
     d.setDate(d.getDate() - parseInt(args.flags.days as string, 10));
     options.startPublishedDate = d.toISOString();
+  } else if (args.flags.after) {
+    options.startPublishedDate = `${args.flags.after as string}T00:00:00.000Z`;
   }
   if (args.flags.domains) {
     options.includeDomains = (args.flags.domains as string).split(",").map((s) => s.trim());
-  }
-  if (args.flags.exclude) {
-    options.excludeDomains = (args.flags.exclude as string).split(",").map((s) => s.trim());
   }
 
   // Status line
