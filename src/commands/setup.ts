@@ -1,101 +1,59 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
-import { homedir } from "os";
-import { join } from "path";
 import { getApiKeyStatus, saveApiKey } from "../lib/config.js";
 
 const SERVICE_INFO: Record<string, { name: string; url: string; purpose: string }> = {
   exa: {
     name: "Exa",
     url: "https://exa.ai",
-    purpose: "web search",
+    purpose: "web search (default)",
   },
   firecrawl: {
     name: "Firecrawl",
     url: "https://firecrawl.dev",
-    purpose: "page extraction",
+    purpose: "page extraction (direct URLs)",
   },
   gemini: {
     name: "Google Gemini",
     url: "https://aistudio.google.com/apikey",
-    purpose: "content analysis",
+    purpose: "content analysis (-c flag)",
+  },
+  serper: {
+    name: "Serper",
+    url: "https://serper.dev",
+    purpose: "google, news, scholar, reddit sources",
   },
 };
-
-// ── CLAUDE.md Integration ───────────────────────────────────────────────────
-
-const CLAUDE_MD_DIR = join(homedir(), ".claude");
-const CLAUDE_MD_PATH = join(CLAUDE_MD_DIR, "CLAUDE.md");
-
-const SCOUT_SECTION = `
-## Scout
-
-Use \`scout\` for web research. Run \`scout --help\` for usage.
-`;
-
-function ensureClaudeMd(): { added: boolean } {
-  if (!existsSync(CLAUDE_MD_DIR)) mkdirSync(CLAUDE_MD_DIR, { recursive: true });
-
-  if (existsSync(CLAUDE_MD_PATH)) {
-    const content = readFileSync(CLAUDE_MD_PATH, "utf-8");
-    if (content.includes("## Scout")) {
-      return { added: false };
-    }
-    writeFileSync(CLAUDE_MD_PATH, content.trimEnd() + "\n" + SCOUT_SECTION);
-  } else {
-    writeFileSync(CLAUDE_MD_PATH, `# Claude Memory\n${SCOUT_SECTION}`);
-  }
-
-  return { added: true };
-}
-
-// ── Command ─────────────────────────────────────────────────────────────────
 
 export function run(positional: string[]): void {
   const service = positional[0] as string | undefined;
   const key = positional[1] as string | undefined;
 
-  // scout setup exa <key> — save a key
   if (service && key) {
     const info = SERVICE_INFO[service];
     if (!info) {
-      console.error(`Unknown service: ${service}. Use: exa, firecrawl, or gemini`);
+      console.error(`Unknown service: ${service}. Use: exa, firecrawl, gemini, or serper`);
       process.exit(1);
     }
 
-    saveApiKey(service as "exa" | "firecrawl" | "gemini", key);
+    saveApiKey(service as "exa" | "firecrawl" | "gemini" | "serper", key);
     console.log(`[ok] ${info.name} API key saved`);
-
-    // Check if all keys now configured, if so add to CLAUDE.md
-    const allConfigured = getApiKeyStatus().every((s) => s.configured);
-    if (allConfigured) {
-      const { added } = ensureClaudeMd();
-      if (added) console.log("[ok] Added scout to ~/.claude/CLAUDE.md");
-    }
-
     return;
   }
 
-  // scout setup — show status and instructions
   const statuses = getApiKeyStatus();
 
-  console.log("\nscout requires three API keys:\n");
+  console.log("\nscout API keys:\n");
 
   for (const { service: svc, configured } of statuses) {
     const info = SERVICE_INFO[svc]!;
+    if (!info) continue;
     const icon = configured ? "[ok]" : "[--]";
     const state = configured ? "configured" : "missing";
     console.log(`  ${icon} ${info.name.padEnd(15)} ${state.padEnd(12)} ${info.purpose}`);
   }
 
-  const missing = statuses.filter((s) => !s.configured);
+  const missing = statuses.filter((s) => !s.configured && SERVICE_INFO[s.service]);
 
   if (missing.length === 0) {
-    const { added } = ensureClaudeMd();
-    if (added) {
-      console.log("\n[ok] Added scout to ~/.claude/CLAUDE.md");
-    } else {
-      console.log("\n[ok] Claude Code integration already configured.");
-    }
     console.log("\nAll keys configured. Ready to search.");
     return;
   }

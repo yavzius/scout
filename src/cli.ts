@@ -6,6 +6,7 @@ import * as search from "./commands/search.js";
 import * as extract from "./commands/extract.js";
 import * as cache from "./commands/cache.js";
 import * as setup from "./commands/setup.js";
+import * as install from "./commands/install.js";
 
 // ── Help ────────────────────────────────────────────────────────────────────
 
@@ -48,6 +49,9 @@ DRILL INTO COMMENTS
   scout "reddit:/r/sub/comments/id/slug/" --source reddit  Load comments for Reddit post
 
   Comment results show author credibility: * (established) ** (authority)
+
+INSTALL
+  scout install --skills           Install research skill for Claude Code, Codex, OpenCode, Gemini
 
 SETUP
   scout setup                      Show API key status
@@ -236,7 +240,7 @@ async function main(): Promise<void> {
   const KNOWN_FLAGS = new Set([
     "help", "version", "json", "raw", "no-cache", "context", "context-file",
     "num", "deep", "type", "category", "after", "before", "days", "domains",
-    "exclude", "max-age", "livecrawl", "limit", "max-results", "extract", "provider", "source", "subreddit", "comments",
+    "exclude", "max-age", "livecrawl", "limit", "max-results", "extract", "provider", "source", "subreddit", "comments", "skills",
   ]);
 
   for (const key of Object.keys(args.flags)) {
@@ -278,6 +282,12 @@ async function main(): Promise<void> {
       process.exit(1);
     }
     await extract.fromUrl(url, args);
+    return;
+  }
+
+  // Install: scout install --skills
+  if (command === "install") {
+    install.run(args.flags);
     return;
   }
 
